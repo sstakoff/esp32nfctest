@@ -1,0 +1,16 @@
+{
+  "idf.espIdfPath": "/Users/sstakoff/dev/esp32/esp-idf",
+  "idf.adapterTargetName": "esp32",
+  "idf.openOcdConfigs": [
+    "board/esp32-wrover-kit-3.3v.cfg"
+  ],
+  "files.associations": {
+    "i2c.h": "c",
+    "i2c_types.h": "c",
+    "i2c_wrap.h": "c",
+    "esp_err.h": "c",
+    "sdkconfig.h": "c"
+  },
+  "idf.port": "/dev/cu.SLAB_USBtoUART",
+  "idf.flashType": "UART"
+}
