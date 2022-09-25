@@ -12,9 +12,9 @@ esp_err_t i2c_init(int portnum, uint8_t sda_pin_num, uint8_t scl_pin_num, uint32
   i2c_config_t conf = {
     .mode = I2C_MODE_MASTER,
     .sda_io_num = sda_pin_num,
-    .sda_pullup_en = GPIO_PULLUP_ENABLE,
+    .sda_pullup_en = GPIO_PULLUP_DISABLE,
     .scl_io_num = scl_pin_num,        
-    .scl_pullup_en = GPIO_PULLUP_ENABLE,
+    .scl_pullup_en = GPIO_PULLUP_DISABLE,
     .master.clk_speed = spd_hz,  
     // .clk_flags = 0,   /*!< Optional, you can use I2C_SCLK_SRC_FLAG_* flags to choose i2c source clock here. */
   };

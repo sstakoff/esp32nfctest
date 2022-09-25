@@ -21,19 +21,66 @@ void app_main(void)
 {
     printf("Hello world!\n");
 
+    vTaskDelay(2000/ portTICK_PERIOD_MS);
+
+
+    // Reset PN532
+    // gpio_config_t conf = {
+    //   .pin_bit_mask = 1 << GPIO_NUM_0,
+    //   .mode = GPIO_MODE_OUTPUT,
+    //   .pull_up_en = GPIO_PULLDOWN_DISABLE,
+    // };
+    // ESP_ERROR_CHECK( gpio_config(&conf));
+    ESP_ERROR_CHECK(gpio_set_direction(GPIO_NUM_19, GPIO_MODE_OUTPUT));
+    gpio_set_level(GPIO_NUM_19, 0);
+    vTaskDelay(2000/ portTICK_PERIOD_MS);
+    gpio_set_level(GPIO_NUM_19, 1);
+    vTaskDelay(2000/ portTICK_PERIOD_MS);
+
+
     i2c_init(0, 21, 22, 400000, 0x48);
     printf("I2C initialized\n");
+    int t=0;
+    i2c_set_timeout(0, 132000);
+    i2c_get_timeout(0,&t);
+    printf("I2C Timeout: %d\n", t);
+    vTaskDelay(2000/ portTICK_PERIOD_MS);
 
-  // const uint8_t cmddata[] = { 0x00, 0x00, 's', 't', 'o', 'o'}; // Comms test
+
+  // const uint8_t wakeupCommand[] = { 0x00, 0x00, 's', 't', 'o', 'o'}; // Comms test
 
   uint8_t wakeupCommand[] = {0x14, 0x01};
   uint8_t frame[256];
   size_t frameLen = sizeof(frame);
 
   build_frame(wakeupCommand, sizeof(wakeupCommand), frame, &frameLen);
+  printf("Frame: ");
+  for (int i=0; i < frameLen; ++i) {
+    printf("%x ", frame[i]);
+  }
+  printf("\n");
 
-  for (int i=0; i < 10000000; ++i);
-  i2c_write(frame, frameLen, 5000);
+  i2c_write(frame, frameLen, 500);
+  printf("Wrote command\n");
+
+  vTaskDelay(5000 / portTICK_PERIOD_MS);
+
+  uint8_t buf[256];
+  i2c_read(&buf, sizeof(buf), 500);
+  printf("RX: ");
+  for (int i=0; i < 7; ++i) {
+    printf("%x ", buf[i]);
+  }
+  printf("\n");
+
+  vTaskDelay(1000 / portTICK_PERIOD_MS);
+
+  i2c_read(&buf, sizeof(buf), 500);
+  printf("RX: ");
+  for (int i=0; i < 17; ++i) {
+    printf("%x ", buf[i]);
+  }
+  printf("\n");
 
 
 
@@ -42,13 +89,12 @@ void app_main(void)
 
 
 
-
-    uint8_t buf[8];
-    i2c_read(buf, 8, 500);
-    for (int i=0; i < 8; ++i) {
-      printf("%d ", buf[i]);
-    }
-    printf("\n");
+    // uint8_t buf[8];
+    // i2c_read(buf, 8, 500);
+    // for (int i=0; i < 8; ++i) {
+    //   printf("%d ", buf[i]);
+    // }
+    // printf("\n");
   
 
 
