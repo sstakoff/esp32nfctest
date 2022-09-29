@@ -37,10 +37,26 @@ int i2c_read(uint8_t *pbtRx, const size_t szRx, TickType_t ticks_to_wait) {
   return ESP_OK;
 }
 
-int i2c_write(const uint8_t *pbtTx, const size_t szTx, TickType_t ticks_to_wait) {
+esp_err_t i2c_write(const uint8_t *pbtTx, const size_t szTx, TickType_t ticks_to_wait) {
   ESP_ERROR_CHECK(i2c_master_write_to_device(i2c_portnum, i2c_dev_7bit_addr, pbtTx, szTx, ticks_to_wait));
-  return 0;
+  return ESP_OK;
 }
+
+int get_i2c_timeout() {
+  int t = 0;
+  i2c_get_timeout(i2c_portnum, &t);
+  return t;
+}
+
+void set_i2c_timeout(int timeout_ms) {
+  // Clock is based on the APB Frequency (80MHz)
+  double t = timeout_ms / 1000.0 * I2C_APB_CLK_FREQ;
+  int t2 = t;
+
+  printf("Setting i2c timeout to: %d\n", t2);
+  i2c_set_timeout(i2c_portnum, t2);
+}
+
 
 
 // /**

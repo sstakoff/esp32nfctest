@@ -3,7 +3,14 @@
 
 #include "stddef.h"
 #include "stdio.h"
+#include "esp_err.h"
+
+
+void pn532_wake();
+void pn532_set_reset_pin(int reset_pin_num);
+void pn532_reset();
 
 void build_frame(uint8_t *pCmdBuf, size_t cmdLen, uint8_t *pFrameBuf, size_t *pFrameBufLen);
+esp_err_t send_pn532_command(const uint8_t *pCmdBuf, size_t cmdBufLen);
 
 #endif

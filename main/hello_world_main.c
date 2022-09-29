@@ -17,116 +17,31 @@
 #include "pn532.h"
 
 
+
+#define I2C_PORT 0
+
 void app_main(void)
 {
-    printf("Hello world!\n");
+    printf("Starting up!!!\n");
 
-    vTaskDelay(2000/ portTICK_PERIOD_MS);
-
-
-    // Reset PN532
-    // gpio_config_t conf = {
-    //   .pin_bit_mask = 1 << GPIO_NUM_0,
-    //   .mode = GPIO_MODE_OUTPUT,
-    //   .pull_up_en = GPIO_PULLDOWN_DISABLE,
-    // };
-    // ESP_ERROR_CHECK( gpio_config(&conf));
-    ESP_ERROR_CHECK(gpio_set_direction(GPIO_NUM_19, GPIO_MODE_OUTPUT));
-    gpio_set_level(GPIO_NUM_19, 0);
-    vTaskDelay(2000/ portTICK_PERIOD_MS);
-    gpio_set_level(GPIO_NUM_19, 1);
-    vTaskDelay(2000/ portTICK_PERIOD_MS);
-
-
-    i2c_init(0, 21, 22, 400000, 0x48);
+    // Initialize I2C @ 400 KHz
+    i2c_init(I2C_PORT, 21, 22, 400000, 0x48);
     printf("I2C initialized\n");
-    int t=0;
-    i2c_set_timeout(0, 132000);
-    i2c_get_timeout(0,&t);
-    printf("I2C Timeout: %d\n", t);
-    vTaskDelay(2000/ portTICK_PERIOD_MS);
 
+    // Configure PN532 reset pin and reset the card
+    pn532_set_reset_pin(GPIO_NUM_19);
+    pn532_reset();
 
-  // const uint8_t wakeupCommand[] = { 0x00, 0x00, 's', 't', 'o', 'o'}; // Comms test
+    // Wakeup the PN532
+    pn532_wake();
 
-  uint8_t wakeupCommand[] = {0x14, 0x01};
-  uint8_t frame[256];
-  size_t frameLen = sizeof(frame);
-
-  build_frame(wakeupCommand, sizeof(wakeupCommand), frame, &frameLen);
-  printf("Frame: ");
-  for (int i=0; i < frameLen; ++i) {
-    printf("%x ", frame[i]);
-  }
-  printf("\n");
-
-  i2c_write(frame, frameLen, 500);
-  printf("Wrote command\n");
-
-  vTaskDelay(5000 / portTICK_PERIOD_MS);
-
-  uint8_t buf[256];
-  i2c_read(&buf, sizeof(buf), 500);
-  printf("RX: ");
-  for (int i=0; i < 7; ++i) {
-    printf("%x ", buf[i]);
-  }
-  printf("\n");
-
-  vTaskDelay(1000 / portTICK_PERIOD_MS);
-
-  i2c_read(&buf, sizeof(buf), 500);
-  printf("RX: ");
-  for (int i=0; i < 17; ++i) {
-    printf("%x ", buf[i]);
-  }
-  printf("\n");
-
-
-
-
-
-
-
-
-    // uint8_t buf[8];
-    // i2c_read(buf, 8, 500);
-    // for (int i=0; i < 8; ++i) {
-    //   printf("%d ", buf[i]);
-    // }
-    // printf("\n");
   
 
-
-    // printf("%d tick rate MS\n", portTICK_RATE_MS);
-    // printf("%d 1 msec to ticks\n", pdMS_TO_TICKS(1000));
-    // fflush(stdout);
-
-
-    // /* Print chip information */
-    // esp_chip_info_t chip_info;
-    // esp_chip_info(&chip_info);
-    // printf("This is %s chip with %d CPU core(s), WiFi%s%s, ",
-    //         CONFIG_IDF_TARGET,
-    //         chip_info.cores,
-    //         (chip_info.features & CHIP_FEATURE_BT) ? "/BT" : "",
-    //         (chip_info.features & CHIP_FEATURE_BLE) ? "/BLE" : "");
-
-    // printf("silicon revision %d, ", chip_info.revision);
-
-    // printf("%dMB %s flash\n", spi_flash_get_chip_size() / (1024 * 1024),
-    //         (chip_info.features & CHIP_FEATURE_EMB_FLASH) ? "embedded" : "external");
-
-    // printf("Minimum free heap size: %d bytes\n", esp_get_minimum_free_heap_size());
-
-    // for (int i = 10; i >= 0; i--) {
-    //     printf("Restarting in %d seconds...\n", i);
-    //     vTaskDelay(1000 / portTICK_PERIOD_MS);
-    // }
-    // printf("Restarting now.\n");
-    // fflush(stdout);
-    // esp_restart();
+    // const uint8_t wakeupCommand[] = { 0x00, 0x00, 's', 't', 'o', 'o'}; // Comms test
 
         fflush(stdout);
 
 }
+
+
+

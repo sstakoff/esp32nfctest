@@ -8,6 +8,9 @@
 esp_err_t i2c_init(int portnum, uint8_t sda_pin_num, uint8_t scl_pin_num, uint32_t spd_hz, uint8_t dev_addr_w);
 int i2c_read(uint8_t *pbtRx, const size_t szRx, TickType_t ticks_to_wait);
 
-int i2c_write(const uint8_t *pbtTx, const size_t szTx, TickType_t ticks_to_wait);
+esp_err_t i2c_write(const uint8_t *pbtTx, const size_t szTx, TickType_t ticks_to_wait);
+
+int get_i2c_timeout();
+void set_i2c_timeout(int timeout_ms);
 
 #endif
