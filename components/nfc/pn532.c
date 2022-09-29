@@ -1,13 +1,34 @@
 #include "pn532.h"
 #include "i2c_wrap.h"
 #include <string.h>
+#include <sys/time.h>
 
 static int pn532_reset_pin_num = 0;
+static struct timeval __transaction_stop;
+
 void pn532_set_reset_pin(int reset_pin_num) {
   pn532_reset_pin_num = reset_pin_num;
 
   ESP_ERROR_CHECK(gpio_set_direction(reset_pin_num, GPIO_MODE_OUTPUT));
 
+}
+
+void pn532_bus_delay() {
+  // Ensure that the i2c bus has had enough time since the last i2c_stop.
+  // See section 12.25 of the pnc532 datasheet. The min time between the
+  // last i2c_stop and the next i2c_start is 1.3ms. We will use 5ms
+
+  struct timeval now;
+  gettimeofday(&now, NULL);
+
+  time_t now_msec = now.tv_sec * 1000L + (now.tv_usec / 1000);
+  time_t stop_time_msec = __transaction_stop.tv_sec * 1000L + (__transaction_stop.tv_usec / 1000);
+
+  time_t delay_needed_ms = 5 - (now_msec - stop_time_msec);
+  if (delay_needed_ms > 0) {
+    printf("Delaying i2c bus for %ld ms", delay_needed_ms);
+    vTaskDelay(delay_needed_ms / portTICK_PERIOD_MS);
+  }
 }
 
 void pn532_reset() {
@@ -44,17 +65,6 @@ void build_frame(uint8_t *pCmdBuf, size_t cmdLen, uint8_t *pFrameBuf, size_t *pF
     *pFrameBufLen = 8 + cmdLen;
 }
 
-esp_err_t send_pn532_command(const uint8_t *pCmdBuf, size_t cmdBufLen) {
-  // Create a frame to send
-
-  static uint8_t frameBuf[256];
-  size_t frameLen = 0;
-  build_frame(pCmdBuf, cmdBufLen, &frameBuf, &frameLen);
-
-  return i2c_write(&frameBuf, frameLen, 200);
-
-}
-
 void pn532_wake() {
 
   // The 532 can stretch the SCL clock up to 1ms after a wakeup.
@@ -72,3 +82,20 @@ void pn532_wake() {
   set_i2c_timeout(savedTimeout);
 
 }
+
+
+esp_err_t send_pn532_command(const uint8_t *pCmdBuf, size_t cmdBufLen) {
+  // Create a frame to send
+
+  static uint8_t frameBuf[256];
+  size_t frameLen = 0;
+  build_frame(pCmdBuf, cmdBufLen, &frameBuf, &frameLen);
+
+  pn532_bus_delay();
+  esp_err_t res = i2c_write(&frameBuf, frameLen, 200);
+  gettimeofday(&__transaction_stop, NULL);
+
+  return res;
+
+}
+

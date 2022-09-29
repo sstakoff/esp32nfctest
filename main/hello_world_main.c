@@ -16,30 +16,28 @@
 #include <string.h>
 #include "pn532.h"
 
-
-
 #define I2C_PORT 0
 
-void app_main(void)
+void app_main()
 {
-    printf("Starting up!!!\n");
+    // printf("Starting up!!!\n");
 
-    // Initialize I2C @ 400 KHz
-    i2c_init(I2C_PORT, 21, 22, 400000, 0x48);
-    printf("I2C initialized\n");
+    // // Initialize I2C @ 400 KHz
+    // i2c_init(I2C_PORT, 21, 22, 400000, 0x48);
+    // printf("I2C initialized\n");
 
-    // Configure PN532 reset pin and reset the card
-    pn532_set_reset_pin(GPIO_NUM_19);
-    pn532_reset();
+    // // Configure PN532 reset pin and reset the card
+    // pn532_set_reset_pin(GPIO_NUM_19);
+    // pn532_reset();
 
-    // Wakeup the PN532
-    pn532_wake();
+    // // Wakeup the PN532
+    // pn532_wake();
 
   
 
-    // const uint8_t wakeupCommand[] = { 0x00, 0x00, 's', 't', 'o', 'o'}; // Comms test
+    // // const uint8_t wakeupCommand[] = { 0x00, 0x00, 's', 't', 'o', 'o'}; // Comms test
 
-        fflush(stdout);
+    // fflush(stdout);
 
 }
 
