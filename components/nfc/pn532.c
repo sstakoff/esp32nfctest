@@ -2,6 +2,7 @@
 #include "i2c_wrap.h"
 #include <string.h>
 #include <sys/time.h>
+#include <sys/param.h>
 
 static int pn532_reset_pin_num = 0;
 static struct timeval __transaction_stop;
@@ -98,4 +99,56 @@ esp_err_t send_pn532_command(const uint8_t *pCmdBuf, size_t cmdBufLen) {
   return res;
 
 }
+
+esp_err_t read_pn532_data(const uint8_t *pRxBuf, size_t rxBufLen, int timeout_ms)
+{
+  uint8_t tmpBuf[512];
+  bool done = false;
+  esp_err_t res = ESP_OK;
+
+  struct timeval now;
+  gettimeofday(&now, NULL);
+  
+  time_t maxtime_ms = now.tv_sec * 1000 + (now.tv_usec / 1000) + timeout_ms;
+
+  do {
+    pn532_bus_delay();
+    res = i2c_read(tmpBuf, sizeof(tmpBuf), 500);
+    gettimeofday(&__transaction_stop, NULL);
+
+    // Check the ready byte
+    if (pRxBuf[0] & 0x01) {
+      // Got the ready bit!
+      // Copy over the data - exclude the ready byte
+      memcpy((void*)pRxBuf, &(tmpBuf[1]), MIN(sizeof(tmpBuf)-1, rxBufLen));
+      done = true;
+
+    } else {
+      // Check for timeout - we can use the __transaction_stop time
+      if (__transaction_stop.tv_sec * 1000 + (__transaction_stop.tv_usec / 1000) > maxtime_ms) {
+        res = ESP_ERR_TIMEOUT;
+        done = true;
+      }
+    }
+
+  } while (!done);
+
+  return res;
+}
+
+int check_ack(const uint8_t *buf, size_t buflen) {
+  if (buflen < 6) return false;
+  uint8_t ack[] = {0x00, 0x00, 0xFF, 0x00, 0xFF, 0x00};
+  return memcmp(buf, &ack, 6);
+}
+
+int check_nack(const uint8_t *buf, size_t buflen) {
+  if (buflen < 6) return false;
+  uint8_t nack[] = {0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00};
+  return memcmp(buf, &nack, 6);
+}
+
+ 
+
+
 

@@ -30,7 +30,7 @@ esp_err_t i2c_init(int portnum, uint8_t sda_pin_num, uint8_t scl_pin_num, uint32
 
 }
 
-int i2c_read(uint8_t *pbtRx, const size_t szRx, TickType_t ticks_to_wait) {
+esp_err_t i2c_read(uint8_t *pbtRx, const size_t szRx, TickType_t ticks_to_wait) {
   // Perform a read as master
   esp_err_t res = i2c_master_read_from_device(i2c_portnum, i2c_dev_7bit_addr, pbtRx, szRx, ticks_to_wait);
   ESP_ERROR_CHECK(res);
