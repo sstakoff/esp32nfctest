@@ -3,6 +3,9 @@
 #include <string.h>
 #include <sys/time.h>
 #include <sys/param.h>
+#include "esp_log.h"
+
+static char *TAG = "pn532.c";
 
 static int pn532_reset_pin_num = 0;
 static struct timeval __transaction_stop;
@@ -46,7 +49,7 @@ void pn532_reset() {
 }
 
 
-void build_frame(uint8_t *pCmdBuf, size_t cmdLen, uint8_t *pFrameBuf, size_t *pFrameBufLen)
+void _build_frame(uint8_t *pCmdBuf, size_t cmdLen, uint8_t *pFrameBuf, size_t *pFrameBufLen)
 {
     const uint8_t preamble_and_start[] = { 0x00, 0x00, 0xff };
     memcpy(pFrameBuf, preamble_and_start, sizeof(preamble_and_start));
@@ -84,13 +87,27 @@ void pn532_wake() {
 
 }
 
+void send_pn532_ack() {
+  pn532_bus_delay();
+  uint8_t buf[] = {0x00, 0x00, 0xff, 0x00, 0xff, 0x00};
+  ESP_ERROR_CHECK(i2c_write(&buf, sizeof(buf), 500));
+  gettimeofday(&__transaction_stop, NULL);
+}
+
+void send_pn532_nack() {
+  pn532_bus_delay();
+  uint8_t buf[] = {0x00, 0x00, 0xff, 0xff, 0x00, 0x00};
+  ESP_ERROR_CHECK(i2c_write(&buf, sizeof(buf), 500));
+  gettimeofday(&__transaction_stop, NULL);
+}
+
 
 esp_err_t send_pn532_command(const uint8_t *pCmdBuf, size_t cmdBufLen) {
   // Create a frame to send
 
   static uint8_t frameBuf[256];
   size_t frameLen = 0;
-  build_frame(pCmdBuf, cmdBufLen, &frameBuf, &frameLen);
+  _build_frame(pCmdBuf, cmdBufLen, &frameBuf, &frameLen);
 
   pn532_bus_delay();
   esp_err_t res = i2c_write(&frameBuf, frameLen, 200);
@@ -114,6 +131,7 @@ esp_err_t read_pn532_data(const uint8_t *pRxBuf, size_t rxBufLen, int timeout_ms
   do {
     pn532_bus_delay();
     res = i2c_read(tmpBuf, sizeof(tmpBuf), 500);
+    ESP_ERROR_CHECK(res);
     gettimeofday(&__transaction_stop, NULL);
 
     // Check the ready byte
@@ -136,6 +154,7 @@ esp_err_t read_pn532_data(const uint8_t *pRxBuf, size_t rxBufLen, int timeout_ms
   return res;
 }
 
+
 int check_ack(const uint8_t *buf, size_t buflen) {
   if (buflen < 6) return false;
   uint8_t ack[] = {0x00, 0x00, 0xFF, 0x00, 0xFF, 0x00};
@@ -146,6 +165,34 @@ int check_nack(const uint8_t *buf, size_t buflen) {
   if (buflen < 6) return false;
   uint8_t nack[] = {0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00};
   return memcmp(buf, &nack, 6);
+}
+
+int check_error(const uint8_t *buf, size_t buflen) {
+  if (buflen < 6) return false;
+  uint8_t nack[] = {0x00, 0x00, 0xFF, 0x01, 0xff, 0x7f, 0x81, 0x00};
+  return memcmp(buf, &nack, 8);
+}
+
+void pn532_extract_command_response(const uint8_t *pRxBuf, size_t rxBufLen, uint8_t expectedCommandCode,
+   uint8_t *pRespBuf, size_t respBufLen) 
+{
+  // Check preamble & start of frame
+  const uint8_t preamble_and_start[] = { 0x00, 0x00, 0xff };
+  if (memcmp(pRxBuf, preamble_and_start, sizeof(preamble_and_start)) != 0) {
+    ESP_LOGE(TAG, "Did not find preamble & start in pn532_extract_command_response");
+    abort();
+  }
+
+  uint16_t datalen = pRxBuf[3];
+  uint8_t *pLCS = &pRxBuf[4];
+  // Check for extended length format
+  if (datalen == 0xff && pRxBuf[4] == 0xff) {
+    datalen = (pRxBuf[5] << 8) + pRxBuf[6];
+    pLCS = &pRxBuf[7];
+  }
+
+
+
 }
 
  

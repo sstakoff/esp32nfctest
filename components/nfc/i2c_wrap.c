@@ -32,14 +32,11 @@ esp_err_t i2c_init(int portnum, uint8_t sda_pin_num, uint8_t scl_pin_num, uint32
 
 esp_err_t i2c_read(uint8_t *pbtRx, const size_t szRx, TickType_t ticks_to_wait) {
   // Perform a read as master
-  esp_err_t res = i2c_master_read_from_device(i2c_portnum, i2c_dev_7bit_addr, pbtRx, szRx, ticks_to_wait);
-  ESP_ERROR_CHECK(res);
-  return ESP_OK;
+  return i2c_master_read_from_device(i2c_portnum, i2c_dev_7bit_addr, pbtRx, szRx, ticks_to_wait);
 }
 
 esp_err_t i2c_write(const uint8_t *pbtTx, const size_t szTx, TickType_t ticks_to_wait) {
-  ESP_ERROR_CHECK(i2c_master_write_to_device(i2c_portnum, i2c_dev_7bit_addr, pbtTx, szTx, ticks_to_wait));
-  return ESP_OK;
+  return i2c_master_write_to_device(i2c_portnum, i2c_dev_7bit_addr, pbtTx, szTx, ticks_to_wait);
 }
 
 int get_i2c_timeout() {
