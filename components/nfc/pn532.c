@@ -49,24 +49,27 @@ void pn532_reset() {
 }
 
 
-void _build_frame(uint8_t *pCmdBuf, size_t cmdLen, uint8_t *pFrameBuf, size_t *pFrameBufLen)
+void _build_frame(uint8_t commandCode, const uint8_t *pCmdDataBuf, size_t cmdDataLen, uint8_t *pFrameBuf, size_t *pFrameBufLen)
 {
     const uint8_t preamble_and_start[] = { 0x00, 0x00, 0xff };
     memcpy(pFrameBuf, preamble_and_start, sizeof(preamble_and_start));
 
-    pFrameBuf[3] = cmdLen + 1;  //LEN - includes the TFI
-    pFrameBuf[4] = 256 - (cmdLen + 1);  // LCS
+    pFrameBuf[3] = cmdDataLen + 2;  //LEN - includes the TFI and the command code
+    pFrameBuf[4] = 256 - (cmdDataLen + 2);  // LCS
     pFrameBuf[5] = 0xd4; // TFI
-    memcpy(pFrameBuf + 6, pCmdBuf, cmdLen);
+    pFrameBuf[6] = commandCode;
+
+    memcpy(pFrameBuf + 7, pCmdDataBuf, cmdDataLen);
 
     uint8_t dcs = 256 - 0xd4; // DCS
-    for (size_t i = 0; i < cmdLen; ++i) {
-      dcs -= pCmdBuf[i];
+    dcs -= commandCode;
+    for (size_t i = 0; i < cmdDataLen; ++i) {
+      dcs -= pCmdDataBuf[i];
     }
-    pFrameBuf[6 + cmdLen] = dcs;
-    pFrameBuf[7 + cmdLen] = 0x00;
+    pFrameBuf[7 + cmdDataLen] = dcs;
+    pFrameBuf[8 + cmdDataLen] = 0x00;
 
-    *pFrameBufLen = 8 + cmdLen;
+    *pFrameBufLen = 9 + cmdDataLen;
 }
 
 void pn532_wake() {
@@ -79,9 +82,12 @@ void pn532_wake() {
 
   // Send a SAMConfiguration command - this is how you wake the 532
   // The second param 0x01 indicated Normal mode where no SAM is used
-  uint8_t wakeupCommand[] = {0x14, 0x01};
-  ESP_ERROR_CHECK(send_pn532_command(*wakeupCommand, sizeof(wakeupCommand)));
+  uint8_t wakeupCommand[] = {0x01};
 
+  pn532_tranceive(CMD_SamConfiguration, &wakeupCommand, sizeof(wakeupCommand), NULL, 0, 5, 2000);
+
+  ESP_LOGI(TAG, "Woke up pn532\n");
+  
   // Reset the timeout
   set_i2c_timeout(savedTimeout);
 
@@ -102,12 +108,13 @@ void send_pn532_nack() {
 }
 
 
-esp_err_t send_pn532_command(const uint8_t *pCmdBuf, size_t cmdBufLen) {
+esp_err_t send_pn532_command(uint8_t commandCode, const uint8_t *pCmdDataBuf, size_t cmdDataBufLen) 
+{
   // Create a frame to send
 
   static uint8_t frameBuf[256];
   size_t frameLen = 0;
-  _build_frame(pCmdBuf, cmdBufLen, &frameBuf, &frameLen);
+  _build_frame(commandCode, pCmdDataBuf, cmdDataBufLen, &frameBuf, &frameLen);
 
   pn532_bus_delay();
   esp_err_t res = i2c_write(&frameBuf, frameLen, 200);
@@ -167,13 +174,14 @@ int check_nack(const uint8_t *buf, size_t buflen) {
   return memcmp(buf, &nack, 6);
 }
 
-int check_error(const uint8_t *buf, size_t buflen) {
+int check_error(const uint8_t *buf, size_t buflen, uint8_t *errorCode) {
   if (buflen < 6) return false;
-  uint8_t nack[] = {0x00, 0x00, 0xFF, 0x01, 0xff, 0x7f, 0x81, 0x00};
-  return memcmp(buf, &nack, 8);
+  uint8_t nack[] = {0x00, 0x00, 0xFF, 0x01, 0xff };
+  *errorCode = buf[5];
+  return memcmp(buf, &nack, 5);
 }
 
-void pn532_extract_command_response(const uint8_t *pRxBuf, size_t rxBufLen, uint8_t expectedCommandCode,
+int pn532_extract_command_response(const uint8_t *pRxBuf, size_t rxBufLen, uint8_t expectedCommandCode,
    uint8_t *pRespBuf, size_t respBufLen) 
 {
   // Check preamble & start of frame
@@ -184,18 +192,121 @@ void pn532_extract_command_response(const uint8_t *pRxBuf, size_t rxBufLen, uint
   }
 
   uint16_t datalen = pRxBuf[3];
-  uint8_t *pLCS = &pRxBuf[4];
+  int TFI_idx = 5;
   // Check for extended length format
   if (datalen == 0xff && pRxBuf[4] == 0xff) {
+    // extended frame
     datalen = (pRxBuf[5] << 8) + pRxBuf[6];
-    pLCS = &pRxBuf[7];
+    // Check LCS
+    if (((pRxBuf[5] + pRxBuf[6] + pRxBuf[7]) % 256) != 0) {
+      ESP_LOGE(TAG, "Bad extended LCS");
+      abort();
+    }
+    TFI_idx = 8;
+  } else {
+    // normal frame - check LCS
+    if ((uint8_t)(pRxBuf[3] + pRxBuf[4])) {
+      ESP_LOGE(TAG, "Bad LCS");
+      abort();
+    }
   }
 
+  // Check TFI
+  if (pRxBuf[TFI_idx] != 0xd5) {
+    ESP_LOGE(TAG, "Bad TFI: %x", pRxBuf[TFI_idx]);
+    abort();
+  }
 
+  // Check the command code
+  if (pRxBuf[TFI_idx + 1] != expectedCommandCode) {
+    ESP_LOGE(TAG, "Bad Command Code on Response: %x", pRxBuf[TFI_idx + 1]);
+    abort();
+  }
 
+  //  Check DCS
+  uint8_t DCS = pRxBuf[TFI_idx + datalen];
+  uint8_t btDCS = DCS;
+
+  // Compute data checksum
+  for (size_t i = 0; i < datalen; i++) {
+    btDCS += pRxBuf[TFI_idx + i];
+  }
+
+  if (btDCS != 0) {
+    ESP_LOGE(TAG, "Data checksum mismatch");
+    abort();
+  }
+
+  if (0x00 != pRxBuf[TFI_idx + datalen + 1]) {
+    ESP_LOGE(TAG, "Postamble mismatch");
+    abort();
+  }
+
+  if (rxBufLen < datalen-2) {
+    ESP_LOGE(TAG, "Receive buffer too small for returned data: was %d but need %d\n", rxBufLen, datalen-2);
+    abort();
+  }
+
+  memcpy(pRespBuf, &pRxBuf[TFI_idx + 2], datalen - 2);
+  return datalen - 2;
 }
 
- 
+// Return # bytes in the response
+size_t pn532_tranceive(uint8_t commandCode, const uint8_t *pCmdDataBuf, size_t cmdDataBufLen, 
+                    uint8_t *pRespBuf, size_t respBufLen, int retries, int timeout_ms)
+{
 
+  int retriesLeft = retries;
+  int done = 0;
+  int respLen = 0;
+  do {
 
+    if (retriesLeft != retries) {
+      ESP_LOGI(TAG, "Retrying. Attempts left: %d\n", retriesLeft);
+      send_pn532_ack(); // Reset the command
+    }  
 
+    retriesLeft--;
+
+    ESP_ERROR_CHECK(send_pn532_command(commandCode, pCmdDataBuf, cmdDataBufLen));
+
+    // Receive the ack
+    static uint8_t buf[384];
+    if (ESP_ERR_TIMEOUT == read_pn532_data(&buf, sizeof(buf), timeout_ms)) {
+      // Send an ack (resets the dialogue) and try again
+      ESP_LOGW(TAG, "Timed out waiting for ACK.");
+      continue;
+    }
+
+    // Make sure we recieved an ACK - not NACK or ERROR
+    if (0 == check_nack(&buf, sizeof(buf))) {
+      ESP_LOGE(TAG, "Received a NACK!!!");
+      continue;
+    }
+
+    uint8_t ecode = 0;
+    if (0 == check_error(&buf, sizeof(buf), &ecode)) {
+      ESP_LOGE(TAG, "Received application level error code: %x", ecode);
+      continue;
+    }
+
+    // Make sure we received an ack
+    if (0 != check_ack(pRespBuf, respLen)) {
+      ESP_LOGE(TAG, "Did not receive expected ACK. Not sure what happened here");
+      continue;
+    }
+
+    // We got the ACK, so now retrieve the command response
+    if (ESP_ERR_TIMEOUT == read_pn532_data(&buf, sizeof(buf), timeout_ms)) {
+      ESP_LOGW(TAG, "Timed out waiting for command response.");
+      continue;
+    }
+
+    int respLen = pn532_extract_command_response(&buf, sizeof(buf), commandCode+1, pRespBuf, respBufLen);
+    done = 1;
+    
+  } while (!done && retriesLeft > 0);
+
+  return respLen;
+
+}

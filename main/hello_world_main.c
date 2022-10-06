@@ -33,8 +33,6 @@ void app_main()
     // Wakeup the PN532
     pn532_wake();
 
-  
-
     // const uint8_t wakeupCommand[] = { 0x00, 0x00, 's', 't', 'o', 'o'}; // Comms test
 
     fflush(stdout);
