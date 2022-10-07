@@ -92,6 +92,23 @@ void pn532_wake() {
   restore_i2c_timeout();
 }
 
+void pn532_comms_test() {
+  set_i2c_timeout(2); // 2ms to be safe
+
+  uint8_t testData[] = {0x00, 's', 't', 'o', 'o'};
+
+  uint8_t resp[16];
+  size_t respLen = pn532_tranceive(CMD_Diagnose, &testData, sizeof(testData), &resp, sizeof(resp), 5, 2000);
+
+  if ((respLen == sizeof(testData)) && (0 == memcmp(testData, resp, respLen))) {
+    ESP_LOGI(TAG, "Passed comms test\n");
+  } else {
+    ESP_LOGE(TAG, "Comms test failed\n");
+    abort();
+  }
+}
+
+
 void send_pn532_ack() {
   pn532_bus_delay();
   uint8_t buf[] = {0x00, 0x00, 0xff, 0x00, 0xff, 0x00};
@@ -312,7 +329,7 @@ size_t pn532_tranceive(uint8_t commandCode, const uint8_t *pCmdDataBuf, size_t c
       continue;
     }
 
-    int respLen = pn532_extract_command_response(&buf, sizeof(buf), commandCode+1, pRespBuf, respBufLen);
+    respLen = pn532_extract_command_response(&buf, sizeof(buf), commandCode+1, pRespBuf, respBufLen);
     done = 1;
     
   } while (!done && retriesLeft > 0);

@@ -6,6 +6,7 @@
 #include "esp_err.h"
 
 void pn532_wake();
+void pn532_comms_test();
 void pn532_set_reset_pin(int reset_pin_num);
 void pn532_reset();
 
@@ -24,6 +25,7 @@ int check_error(const uint8_t *buf, size_t buflen, uint8_t *errorCode);
 
 
 #define CMD_SamConfiguration 0x14
+#define CMD_Diagnose 0x00
 
 
 #endif
