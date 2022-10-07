@@ -15,12 +15,15 @@
 #include "i2c_wrap.h"
 #include <string.h>
 #include "pn532.h"
+#include "esp_log.h"
 
 #define I2C_PORT 0
 
+static const char *TAG = "main";
+
 void app_main()
 {
-    printf("Starting up!!!\n");
+    ESP_LOGI(TAG, "Starting up!!!\n");
 
     // Initialize I2C @ 400 KHz
     i2c_init(I2C_PORT, 21, 22, 400000, 0x48);

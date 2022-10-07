@@ -10,7 +10,8 @@ esp_err_t i2c_read(uint8_t *pbtRx, const size_t szRx, TickType_t ticks_to_wait);
 
 esp_err_t i2c_write(const uint8_t *pbtTx, const size_t szTx, TickType_t ticks_to_wait);
 
-int get_i2c_timeout();
+void save_i2c_timeout();
 void set_i2c_timeout(int timeout_ms);
+void restore_i2c_timeout();
 
 #endif

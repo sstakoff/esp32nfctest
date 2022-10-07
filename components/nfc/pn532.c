@@ -30,7 +30,7 @@ void pn532_bus_delay() {
 
   time_t delay_needed_ms = 5 - (now_msec - stop_time_msec);
   if (delay_needed_ms > 0) {
-    printf("Delaying i2c bus for %ld ms", delay_needed_ms);
+    printf("Delaying i2c bus for %ld ms\n", delay_needed_ms);
     vTaskDelay(delay_needed_ms / portTICK_PERIOD_MS);
   }
 }
@@ -77,7 +77,7 @@ void pn532_wake() {
   // The 532 can stretch the SCL clock up to 1ms after a wakeup.
   // Need to change the i2c timeout to allow for this
 
-  int savedTimeout = get_i2c_timeout();
+  save_i2c_timeout();
   set_i2c_timeout(2); // 2ms to be safe
 
   // Send a SAMConfiguration command - this is how you wake the 532
@@ -89,8 +89,7 @@ void pn532_wake() {
   ESP_LOGI(TAG, "Woke up pn532\n");
   
   // Reset the timeout
-  set_i2c_timeout(savedTimeout);
-
+  restore_i2c_timeout();
 }
 
 void send_pn532_ack() {
@@ -187,7 +186,7 @@ int pn532_extract_command_response(const uint8_t *pRxBuf, size_t rxBufLen, uint8
   // Check preamble & start of frame
   const uint8_t preamble_and_start[] = { 0x00, 0x00, 0xff };
   if (memcmp(pRxBuf, preamble_and_start, sizeof(preamble_and_start)) != 0) {
-    ESP_LOGE(TAG, "Did not find preamble & start in pn532_extract_command_response");
+    ESP_LOGE(TAG, "Did not find preamble & start in pn532_extract_command_response\n");
     abort();
   }
 
@@ -199,7 +198,7 @@ int pn532_extract_command_response(const uint8_t *pRxBuf, size_t rxBufLen, uint8
     datalen = (pRxBuf[5] << 8) + pRxBuf[6];
     // Check LCS
     if (((pRxBuf[5] + pRxBuf[6] + pRxBuf[7]) % 256) != 0) {
-      ESP_LOGE(TAG, "Bad extended LCS");
+      ESP_LOGE(TAG, "Bad extended LCS\n");
       abort();
     }
     TFI_idx = 8;
@@ -219,7 +218,7 @@ int pn532_extract_command_response(const uint8_t *pRxBuf, size_t rxBufLen, uint8
 
   // Check the command code
   if (pRxBuf[TFI_idx + 1] != expectedCommandCode) {
-    ESP_LOGE(TAG, "Bad Command Code on Response: %x", pRxBuf[TFI_idx + 1]);
+    ESP_LOGE(TAG, "Bad Command Code on Response: %x\n", pRxBuf[TFI_idx + 1]);
     abort();
   }
 
@@ -233,12 +232,12 @@ int pn532_extract_command_response(const uint8_t *pRxBuf, size_t rxBufLen, uint8
   }
 
   if (btDCS != 0) {
-    ESP_LOGE(TAG, "Data checksum mismatch");
+    ESP_LOGE(TAG, "Data checksum mismatch\n");
     abort();
   }
 
   if (0x00 != pRxBuf[TFI_idx + datalen + 1]) {
-    ESP_LOGE(TAG, "Postamble mismatch");
+    ESP_LOGE(TAG, "Postamble mismatch\n");
     abort();
   }
 
@@ -274,31 +273,31 @@ size_t pn532_tranceive(uint8_t commandCode, const uint8_t *pCmdDataBuf, size_t c
     static uint8_t buf[384];
     if (ESP_ERR_TIMEOUT == read_pn532_data(&buf, sizeof(buf), timeout_ms)) {
       // Send an ack (resets the dialogue) and try again
-      ESP_LOGW(TAG, "Timed out waiting for ACK.");
+      ESP_LOGW(TAG, "Timed out waiting for ACK.\n");
       continue;
     }
 
     // Make sure we recieved an ACK - not NACK or ERROR
     if (0 == check_nack(&buf, sizeof(buf))) {
-      ESP_LOGE(TAG, "Received a NACK!!!");
+      ESP_LOGE(TAG, "Received a NACK!!!\n");
       continue;
     }
 
     uint8_t ecode = 0;
     if (0 == check_error(&buf, sizeof(buf), &ecode)) {
-      ESP_LOGE(TAG, "Received application level error code: %x", ecode);
+      ESP_LOGE(TAG, "Received application level error code: %x\n", ecode);
       continue;
     }
 
     // Make sure we received an ack
     if (0 != check_ack(pRespBuf, respLen)) {
-      ESP_LOGE(TAG, "Did not receive expected ACK. Not sure what happened here");
+      ESP_LOGE(TAG, "Did not receive expected ACK. Not sure what happened here\n");
       continue;
     }
 
     // We got the ACK, so now retrieve the command response
     if (ESP_ERR_TIMEOUT == read_pn532_data(&buf, sizeof(buf), timeout_ms)) {
-      ESP_LOGW(TAG, "Timed out waiting for command response.");
+      ESP_LOGW(TAG, "Timed out waiting for command response.\n");
       continue;
     }
 

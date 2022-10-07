@@ -11,6 +11,6 @@
     "esp_err.h": "c",
     "sdkconfig.h": "c"
   },
-  "idf.port": "/dev/cu.SLAB_USBtoUART",
+  "idf.port": "/dev/cu.usbserial-0001",
   "idf.flashType": "UART"
 }
