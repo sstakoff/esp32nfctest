@@ -125,7 +125,7 @@ esp_err_t send_pn532_command(uint8_t commandCode, const uint8_t *pCmdDataBuf, si
 
 esp_err_t read_pn532_data(const uint8_t *pRxBuf, size_t rxBufLen, int timeout_ms)
 {
-  uint8_t tmpBuf[512];
+  uint8_t tmpBuf[384];
   bool done = false;
   esp_err_t res = ESP_OK;
 
