@@ -99,6 +99,11 @@ void pn532_comms_test() {
   }
 }
 
+void pn532_set_parameters(uint8_t flags) {
+  pn532_tranceive(CMD_SetParameters, &flags, 1, NULL, 0, 5, 2000);
+  ESP_LOGI(TAG, "Set Parameters to: 0x%x", flags);
+}
+
 void pn532_get_firmware_version(uint8_t *IC, uint8_t *Ver, uint8_t *Rev, uint8_t *Support) 
 {
 

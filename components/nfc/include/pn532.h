@@ -8,6 +8,8 @@
 void pn532_wake();
 void pn532_comms_test();
 void pn532_get_firmware_version(uint8_t *IC, uint8_t *Ver, uint8_t *Rev, uint8_t *Support);
+void pn532_set_parameters(uint8_t flags);
+
 void pn532_set_reset_pin(int reset_pin_num);
 void pn532_reset();
 
@@ -28,6 +30,9 @@ int check_error(const uint8_t *buf, size_t buflen, uint8_t *errorCode);
 #define CMD_SamConfiguration 0x14
 #define CMD_Diagnose 0x00
 #define CMD_GetFirmwareVersion 0x02
+#define CMD_SetParameters 0x12
+#define SetParameters_AutomaticRATS_bit 0x10
+#define SetParameters_AutomaticATR_RES_bit 0x04
 
 
 #endif

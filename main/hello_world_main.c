@@ -47,6 +47,8 @@ void app_main()
     uint8_t IC, Ver, Rev, Support;
     pn532_get_firmware_version(&IC, &Ver, &Rev, &Support);
 
+    pn532_set_parameters(SetParameters_AutomaticRATS_bit | SetParameters_AutomaticATR_RES_bit);
+
 
     fflush(stdout);
 
