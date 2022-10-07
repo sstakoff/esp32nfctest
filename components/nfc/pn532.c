@@ -30,7 +30,7 @@ void pn532_bus_delay() {
 
   time_t delay_needed_ms = 5 - (now_msec - stop_time_msec);
   if (delay_needed_ms > 0) {
-    printf("Delaying i2c bus for %ld ms\n", delay_needed_ms);
+    // printf("Delaying i2c bus for %ld ms\n", delay_needed_ms);
     vTaskDelay(delay_needed_ms / portTICK_PERIOD_MS);
   }
 }
@@ -117,16 +117,25 @@ esp_err_t send_pn532_command(uint8_t commandCode, const uint8_t *pCmdDataBuf, si
 
   pn532_bus_delay();
   esp_err_t res = i2c_write(&frameBuf, frameLen, 200);
+  dumphex("Sent cmd", frameBuf, frameLen);
   gettimeofday(&__transaction_stop, NULL);
 
   return res;
 
 }
 
+void dumphex(const char *msg, const uint8_t *buf, size_t cnt) {
+  printf("                                  %s: Dump %d bytes: ", msg, cnt);
+  for (size_t i=0; i < cnt; ++i) {
+    printf("%x ", buf[i]);
+  }
+  printf("\n"); fflush(stdout);
+}
+
 esp_err_t read_pn532_data(const uint8_t *pRxBuf, size_t rxBufLen, int timeout_ms)
 {
   uint8_t tmpBuf[384];
-  bool done = false;
+  int done = 0;
   esp_err_t res = ESP_OK;
 
   struct timeval now;
@@ -141,17 +150,17 @@ esp_err_t read_pn532_data(const uint8_t *pRxBuf, size_t rxBufLen, int timeout_ms
     gettimeofday(&__transaction_stop, NULL);
 
     // Check the ready byte
-    if (pRxBuf[0] & 0x01) {
+    if (tmpBuf[0] & 0x01) {
       // Got the ready bit!
       // Copy over the data - exclude the ready byte
       memcpy((void*)pRxBuf, &(tmpBuf[1]), MIN(sizeof(tmpBuf)-1, rxBufLen));
-      done = true;
+      done = 1;
 
     } else {
       // Check for timeout - we can use the __transaction_stop time
       if (__transaction_stop.tv_sec * 1000 + (__transaction_stop.tv_usec / 1000) > maxtime_ms) {
         res = ESP_ERR_TIMEOUT;
-        done = true;
+        done = 1;
       }
     }
 
@@ -271,7 +280,7 @@ size_t pn532_tranceive(uint8_t commandCode, const uint8_t *pCmdDataBuf, size_t c
 
     // Receive the ack
     static uint8_t buf[384];
-    if (ESP_ERR_TIMEOUT == read_pn532_data(&buf, sizeof(buf), timeout_ms)) {
+    if (ESP_ERR_TIMEOUT == read_pn532_data(buf, sizeof(buf), timeout_ms)) {
       // Send an ack (resets the dialogue) and try again
       ESP_LOGW(TAG, "Timed out waiting for ACK.\n");
       continue;
@@ -294,6 +303,8 @@ size_t pn532_tranceive(uint8_t commandCode, const uint8_t *pCmdDataBuf, size_t c
       ESP_LOGE(TAG, "Did not receive expected ACK. Not sure what happened here\n");
       continue;
     }
+
+    ESP_LOGI(TAG, "*** Received ACK from pn532\n");
 
     // We got the ACK, so now retrieve the command response
     if (ESP_ERR_TIMEOUT == read_pn532_data(&buf, sizeof(buf), timeout_ms)) {

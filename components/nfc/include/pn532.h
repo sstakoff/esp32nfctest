@@ -11,6 +11,7 @@ void pn532_reset();
 
 void send_pn532_ack();
 void send_pn532_nack();
+void dumphex(const char *msg, const uint8_t *buf, size_t cnt);
 esp_err_t send_pn532_command(uint8_t commandCode, const uint8_t *pCmdDataBuf, size_t cmdDataBufLen);
 esp_err_t read_pn532_data(const uint8_t *pRxBuf, size_t rxBufLen, int timeout_ms);
 size_t pn532_tranceive(uint8_t commandCode, const uint8_t *pCmdDataBuf, size_t cmdDataBufLen, 
