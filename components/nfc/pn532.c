@@ -74,12 +74,6 @@ void _build_frame(uint8_t commandCode, const uint8_t *pCmdDataBuf, size_t cmdDat
 
 void pn532_wake() {
 
-  // The 532 can stretch the SCL clock up to 1ms after a wakeup.
-  // Need to change the i2c timeout to allow for this
-
-  save_i2c_timeout();
-  set_i2c_timeout(2); // 2ms to be safe
-
   // Send a SAMConfiguration command - this is how you wake the 532
   // The second param 0x01 indicated Normal mode where no SAM is used
   uint8_t wakeupCommand[] = {0x01};
@@ -88,12 +82,9 @@ void pn532_wake() {
 
   ESP_LOGI(TAG, "Woke up pn532\n");
   
-  // Reset the timeout
-  restore_i2c_timeout();
 }
 
 void pn532_comms_test() {
-  set_i2c_timeout(2); // 2ms to be safe
 
   uint8_t testData[] = {0x00, 's', 't', 'o', 'o'};
 
@@ -106,6 +97,25 @@ void pn532_comms_test() {
     ESP_LOGE(TAG, "Comms test failed\n");
     abort();
   }
+}
+
+void pn532_get_firmware_version(uint8_t *IC, uint8_t *Ver, uint8_t *Rev, uint8_t *Support) 
+{
+
+  uint8_t resp[4];
+  size_t respLen = pn532_tranceive(CMD_GetFirmwareVersion, NULL, 0, &resp, sizeof(resp), 5, 2000);
+
+  if (respLen != 4) {
+    ESP_LOGE(TAG, "Bad response for GetFirmwareVersion");
+    abort();
+  }
+
+  *IC = resp[0];
+  *Ver = resp[1];
+  *Rev = resp[2];
+  *Support = resp[3];
+
+  ESP_LOGI(TAG, "Firmware:  IC: %x, Ver: %x, Rev: %x, Support: %x", *IC, *Ver, *Rev, *Support);
 }
 
 

@@ -25,9 +25,14 @@ void app_main()
 {
     ESP_LOGI(TAG, "Starting up!!!\n");
 
+
     // Initialize I2C @ 400 KHz
     i2c_init(I2C_PORT, 21, 22, 400000, 0x48);
     printf("I2C initialized\n");
+
+    save_i2c_timeout();
+    set_i2c_timeout(2); // 2ms
+
 
     // Configure PN532 reset pin and reset the card
     pn532_set_reset_pin(GPIO_NUM_19);
@@ -38,6 +43,9 @@ void app_main()
   
     // Perform basic comms test
     pn532_comms_test();
+
+    uint8_t IC, Ver, Rev, Support;
+    pn532_get_firmware_version(&IC, &Ver, &Rev, &Support);
 
 
     fflush(stdout);
