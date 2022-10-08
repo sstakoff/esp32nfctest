@@ -189,10 +189,12 @@ esp_err_t read_pn532_data(const uint8_t *pRxBuf, size_t rxBufLen, int timeout_ms
       done = 1;
 
     } else {
-      // Check for timeout - we can use the __transaction_stop time
-      if (__transaction_stop.tv_sec * 1000 + (__transaction_stop.tv_usec / 1000) > maxtime_ms) {
-        res = ESP_ERR_TIMEOUT;
-        done = 1;
+      if (timeout_ms > 0) {
+        // Check for timeout - we can use the __transaction_stop time
+        if (__transaction_stop.tv_sec * 1000 + (__transaction_stop.tv_usec / 1000) > maxtime_ms) {
+          res = ESP_ERR_TIMEOUT;
+          done = 1;
+        }
       }
     }
 
@@ -368,6 +370,46 @@ void pn532_initialize() {
     pn532_get_firmware_version(&IC, &Ver, &Rev, &Support);
 
     pn532_set_parameters(SetParameters_AutomaticRATS_bit | SetParameters_AutomaticATR_RES_bit);
+
+    // Config registers
+    // 0x6302 = CIU_TxMode regsiter. 0x80 = enables the CRC generation during data transmission
+    // 0x6303 = CIU_RxMode register. 0x80 = enables the CRC calculation during reception
+    uint8_t regdata[] = {0x63, 0x02, 0x80, 0x63, 0x03, 0x80};
+    pn532_tranceive(CMD_WriteRegister, regdata, sizeof(regdata), NULL, 0, 5, 2000);
+    ESP_LOGI(TAG, "CRC generation configured");
+
+    // RF Config
+    // 0x01 = RF Field; 
+    // 0x00. Bit 1 = 0 Auto RFCA off - do not take care of external field before switching on own field
+    //       Bit 0 = 0 RF off - Do not generate RF field
+    uint8_t rfdata[] = {0x01, 0x00};
+    pn532_tranceive(CMD_RfConfiguration, rfdata, sizeof(rfdata), NULL, 0, 5, 2000);
+    ESP_LOGI(TAG, "RF Configuration complete");
+
+    // Collision avoidance
+    // 0x6305 = CIU_TxAuto register. 0x04 = InitialRFOn - perform initial RF collision avoidance
+    uint8_t regdata2[] = {0x63, 0x05, 0x04};
+    pn532_tranceive(CMD_WriteRegister, regdata2, sizeof(regdata2), NULL, 0, 5, 2000);
+    ESP_LOGI(TAG, "Collision avoidance configured");
+
+    uint8_t tgtdata[] = {
+      0x01,  // Mode:  PassiveOnly=1 (refuse active comm); DepOnly=0; PiccOnly=0
+      // Mifare params. 6 bytes
+      0x04, 0x00, // SENS_RES. 2 Bytes LSB first. per iso14443-3
+      0x00, 0xb0, 0x0b, // NFC ID
+      0x00, // SEL_RES
+      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // Felica
+      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // NFCID3t
+      0x00, // LenGt
+      0x00 // LenTk
+      };
+
+      uint8_t commandbuf[256];
+      size_t cmdlen = pn532_tranceive(CMD_TgInitAsTarget, tgtdata, sizeof(tgtdata), commandbuf, sizeof(commandbuf), 5, 0);
+      ESP_LOGI(TAG, "GOT COMMAND");
+      dumphex("Command from initiator", commandbuf, cmdlen);
+
+
 
     ESP_LOGI(TAG, "pn532 initialization complete");
 

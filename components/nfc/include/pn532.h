@@ -28,10 +28,14 @@ int check_nack(const uint8_t *buf, size_t buflen);
 int check_error(const uint8_t *buf, size_t buflen, uint8_t *errorCode);
 
 
-#define CMD_SamConfiguration 0x14
 #define CMD_Diagnose 0x00
 #define CMD_GetFirmwareVersion 0x02
+#define CMD_WriteRegister 0x08
 #define CMD_SetParameters 0x12
+#define CMD_SamConfiguration 0x14
+#define CMD_RfConfiguration 0x32
+#define CMD_TgInitAsTarget 0x8c
+
 #define SetParameters_AutomaticRATS_bit 0x10
 #define SetParameters_AutomaticATR_RES_bit 0x04
 
