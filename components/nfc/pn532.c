@@ -352,3 +352,23 @@ size_t pn532_tranceive(uint8_t commandCode, const uint8_t *pCmdDataBuf, size_t c
   return respLen;
 
 }
+
+void pn532_initialize() {
+    
+    ESP_LOGI(TAG, "Initializing the pn532");
+    pn532_reset();
+
+    // Wakeup the PN532
+    pn532_wake();
+  
+    // Perform basic comms test
+    pn532_comms_test();
+
+    uint8_t IC, Ver, Rev, Support;
+    pn532_get_firmware_version(&IC, &Ver, &Rev, &Support);
+
+    pn532_set_parameters(SetParameters_AutomaticRATS_bit | SetParameters_AutomaticATR_RES_bit);
+
+    ESP_LOGI(TAG, "pn532 initialization complete");
+
+}

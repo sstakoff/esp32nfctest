@@ -21,6 +21,7 @@
 
 static const char *TAG = "main";
 
+
 void app_main()
 {
     ESP_LOGI(TAG, "Starting up!!!\n");
@@ -36,23 +37,16 @@ void app_main()
 
     // Configure PN532 reset pin and reset the card
     pn532_set_reset_pin(GPIO_NUM_19);
-    pn532_reset();
 
-    // Wakeup the PN532
-    pn532_wake();
-  
-    // Perform basic comms test
-    pn532_comms_test();
+    pn532_initialize();
 
-    uint8_t IC, Ver, Rev, Support;
-    pn532_get_firmware_version(&IC, &Ver, &Rev, &Support);
-
-    pn532_set_parameters(SetParameters_AutomaticRATS_bit | SetParameters_AutomaticATR_RES_bit);
 
 
     fflush(stdout);
 
 }
+
+
 
 
 

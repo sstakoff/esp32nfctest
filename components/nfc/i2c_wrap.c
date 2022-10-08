@@ -64,31 +64,3 @@ void set_i2c_timeout(int timeout_ms) {
   i2c_set_timeout(i2c_portnum, t2);
 }
 
-
-
-// /**
-//  * @brief Write a frame to I2C device containing \a pbtTx content
-//  *
-//  * @param id I2C device.
-//  * @param pbtTx pointer on buffer containing data
-//  * @param szTx length of the buffer
-//  * @return NFC_SUCCESS on success, otherwise driver error code
-//  */
-// int
-// i2c_write(i2c_device id, const uint8_t *pbtTx, const size_t szTx)
-// {
-//   LOG_HEX(LOG_GROUP, "TX", pbtTx, szTx);
-
-//   ssize_t writeCount;
-//   writeCount = write(I2C_DATA(id) ->fd, pbtTx, szTx);
-
-//   if ((const ssize_t) szTx == writeCount) {
-//     log_put(LOG_GROUP, LOG_CATEGORY, NFC_LOG_PRIORITY_DEBUG,
-//             "wrote %d bytes successfully.", (int)szTx);
-//     return NFC_SUCCESS;
-//   } else {
-//     log_put(LOG_GROUP, LOG_CATEGORY, NFC_LOG_PRIORITY_ERROR,
-//             "Error: wrote only %d bytes (%d expected) (%s).", (int)writeCount, (int) szTx, strerror(errno));
-//     return NFC_EIO;
-//   }
-// }

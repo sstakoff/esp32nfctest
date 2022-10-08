@@ -6,6 +6,7 @@
 #include "esp_err.h"
 
 void pn532_wake();
+void pn532_initialize();
 void pn532_comms_test();
 void pn532_get_firmware_version(uint8_t *IC, uint8_t *Ver, uint8_t *Rev, uint8_t *Support);
 void pn532_set_parameters(uint8_t flags);
