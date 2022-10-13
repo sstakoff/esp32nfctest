@@ -10,6 +10,14 @@ static char *TAG = "pn532.c";
 static int pn532_reset_pin_num = 0;
 static struct timeval __transaction_stop;
 
+static uint8_t *tag_data = NULL;
+static size_t tag_data_len = 0;
+
+void set_tag_data(uint8_t *data, size_t datalen) {
+  tag_data = data;
+  tag_data_len = datalen;
+}
+
 void pn532_set_reset_pin(int reset_pin_num) {
   pn532_reset_pin_num = reset_pin_num;
 
@@ -78,7 +86,7 @@ void pn532_wake() {
   // The second param 0x01 indicated Normal mode where no SAM is used
   uint8_t wakeupCommand[] = {0x01};
 
-  pn532_tranceive(CMD_SamConfiguration, &wakeupCommand, sizeof(wakeupCommand), NULL, 0, 5, 2000);
+  pn532_tranceive(CMD_SamConfiguration, (const uint8_t*)&wakeupCommand, sizeof(wakeupCommand), NULL, 0, 5, 2000);
 
   ESP_LOGI(TAG, "Woke up pn532\n");
   
@@ -89,7 +97,7 @@ void pn532_comms_test() {
   uint8_t testData[] = {0x00, 's', 't', 'o', 'o'};
 
   uint8_t resp[16];
-  size_t respLen = pn532_tranceive(CMD_Diagnose, &testData, sizeof(testData), &resp, sizeof(resp), 5, 2000);
+  size_t respLen = pn532_tranceive(CMD_Diagnose, (const uint8_t *)&testData, sizeof(testData), (uint8_t*)&resp, sizeof(resp), 5, 2000);
 
   if ((respLen == sizeof(testData)) && (0 == memcmp(testData, resp, respLen))) {
     ESP_LOGI(TAG, "Passed comms test\n");
@@ -108,7 +116,7 @@ void pn532_get_firmware_version(uint8_t *IC, uint8_t *Ver, uint8_t *Rev, uint8_t
 {
 
   uint8_t resp[4];
-  size_t respLen = pn532_tranceive(CMD_GetFirmwareVersion, NULL, 0, &resp, sizeof(resp), 5, 2000);
+  size_t respLen = pn532_tranceive(CMD_GetFirmwareVersion, NULL, 0, (uint8_t *)&resp, sizeof(resp), 5, 2000);
 
   if (respLen != 4) {
     ESP_LOGE(TAG, "Bad response for GetFirmwareVersion");
@@ -127,14 +135,14 @@ void pn532_get_firmware_version(uint8_t *IC, uint8_t *Ver, uint8_t *Rev, uint8_t
 void send_pn532_ack() {
   pn532_bus_delay();
   uint8_t buf[] = {0x00, 0x00, 0xff, 0x00, 0xff, 0x00};
-  ESP_ERROR_CHECK(i2c_write(&buf, sizeof(buf), 500));
+  ESP_ERROR_CHECK(i2c_write((const uint8_t *)&buf, sizeof(buf), 500));
   gettimeofday(&__transaction_stop, NULL);
 }
 
 void send_pn532_nack() {
   pn532_bus_delay();
   uint8_t buf[] = {0x00, 0x00, 0xff, 0xff, 0x00, 0x00};
-  ESP_ERROR_CHECK(i2c_write(&buf, sizeof(buf), 500));
+  ESP_ERROR_CHECK(i2c_write((const uint8_t*)&buf, sizeof(buf), 500));
   gettimeofday(&__transaction_stop, NULL);
 }
 
@@ -145,10 +153,10 @@ esp_err_t send_pn532_command(uint8_t commandCode, const uint8_t *pCmdDataBuf, si
 
   static uint8_t frameBuf[256];
   size_t frameLen = 0;
-  _build_frame(commandCode, pCmdDataBuf, cmdDataBufLen, &frameBuf, &frameLen);
+  _build_frame(commandCode, pCmdDataBuf, cmdDataBufLen, (uint8_t *)&frameBuf, &frameLen);
 
   pn532_bus_delay();
-  esp_err_t res = i2c_write(&frameBuf, frameLen, 200);
+  esp_err_t res = i2c_write((const uint8_t*)&frameBuf, frameLen, 200);
   dumphex("Sent cmd", frameBuf, frameLen);
   gettimeofday(&__transaction_stop, NULL);
 
@@ -321,13 +329,13 @@ size_t pn532_tranceive(uint8_t commandCode, const uint8_t *pCmdDataBuf, size_t c
     }
 
     // Make sure we recieved an ACK - not NACK or ERROR
-    if (0 == check_nack(&buf, sizeof(buf))) {
+    if (0 == check_nack((const uint8_t*)&buf, sizeof(buf))) {
       ESP_LOGE(TAG, "Received a NACK!!!\n");
       continue;
     }
 
     uint8_t ecode = 0;
-    if (0 == check_error(&buf, sizeof(buf), &ecode)) {
+    if (0 == check_error((const uint8_t*)&buf, sizeof(buf), &ecode)) {
       ESP_LOGE(TAG, "Received application level error code: %x\n", ecode);
       continue;
     }
@@ -341,12 +349,12 @@ size_t pn532_tranceive(uint8_t commandCode, const uint8_t *pCmdDataBuf, size_t c
     ESP_LOGI(TAG, "*** Received ACK from pn532\n");
 
     // We got the ACK, so now retrieve the command response
-    if (ESP_ERR_TIMEOUT == read_pn532_data(&buf, sizeof(buf), timeout_ms)) {
+    if (ESP_ERR_TIMEOUT == read_pn532_data((const uint8_t*)&buf, sizeof(buf), timeout_ms)) {
       ESP_LOGW(TAG, "Timed out waiting for command response.\n");
       continue;
     }
 
-    respLen = pn532_extract_command_response(&buf, sizeof(buf), commandCode+1, pRespBuf, respBufLen);
+    respLen = pn532_extract_command_response((const uint8_t*)&buf, sizeof(buf), commandCode+1, pRespBuf, respBufLen);
     done = 1;
     
   } while (!done && retriesLeft > 0);
@@ -404,13 +412,93 @@ void pn532_initialize() {
       0x00 // LenTk
       };
 
-      uint8_t commandbuf[256];
-      size_t cmdlen = pn532_tranceive(CMD_TgInitAsTarget, tgtdata, sizeof(tgtdata), commandbuf, sizeof(commandbuf), 5, 0);
-      ESP_LOGI(TAG, "GOT COMMAND");
-      dumphex("Command from initiator", commandbuf, cmdlen);
+    uint8_t commandbuf[256];
+    size_t cmdlen = pn532_tranceive(CMD_TgInitAsTarget, tgtdata, sizeof(tgtdata), commandbuf, sizeof(commandbuf), 5, 0);
+    ESP_LOGI(TAG, "GOT COMMAND");
+    dumphex("Command from initiator", commandbuf, cmdlen);
+
+    while (1) {
+      processInitiatorCommand((const uint8_t*)commandbuf, cmdlen);
+
+      cmdlen = pn532_tranceive(CMD_TgGetInitiatorCommand, NULL, 0, commandbuf, sizeof(commandbuf), 5, 0);
+
+    }
 
 
 
-    ESP_LOGI(TAG, "pn532 initialization complete");
 
+}
+
+void processInitiatorCommand(const uint8_t *pCmdBuf, size_t cmdLen) {
+  if (cmdLen < 2) return;
+
+  uint8_t mode = pCmdBuf[0];
+  uint8_t baudbits = mode & 0x70;
+  int baud = 0;
+  if (baudbits == 0) baud = 106;
+  if (baudbits == 1) baud = 212;
+  if (baudbits == 2) baud = 424;
+  ESP_LOGI(TAG, "Tag Baud: %d", baud);
+
+  ESP_LOGI(TAG, "Supports 14443-4: %d", mode & 0x08);
+  ESP_LOGI(TAG, "Supports DEP: %d", mode & 0x04);
+
+  uint8_t framing = mode & 0x03;
+  switch (framing) {
+    case 0:
+        ESP_LOGI(TAG, "Framing: Mifare");
+        break;
+      case 1:
+        ESP_LOGI(TAG, "Framing: Active");
+        break;
+      case 2:
+        ESP_LOGI(TAG, "Framing: Felica");
+        break;
+      default:
+        ESP_LOGI(TAG, "Framing: **UNKNOWN**");
+        break;
+  }
+
+  // Only support Mifare
+  if (framing != 0) {
+    ESP_LOGE(TAG, "Framing not supported");
+    abort();
+  }
+
+  // Process the command
+  uint8_t startAddr;
+  uint8_t buf[16];
+
+  switch (pCmdBuf[1]) {
+    // READ
+    case 0x30:
+      // Read 16 bytes starting at the address requested
+      startAddr = pCmdBuf[2] * 4; // Each address points to page of 4 bytes
+      // if (startAddr + 16 > tag_data_len) {
+      //   ESP_LOGE(TAG, "Tried to read beyond tag end");
+      //   abort();
+      // }
+
+      ESP_LOGI(TAG, "Start addr: 0x%x", startAddr);
+
+      memcpy(buf, tag_data + startAddr, 16);
+      uint8_t stat = 0;
+      pn532_tranceive(CMD_TgResponseToInitiator, buf, 16, &stat, 1, 5, 2000);
+      uint8_t errcode = stat & 0x3F;
+      if (errcode == 0) {
+        ESP_LOGI(TAG, "Initiator response received successfully");
+      } else {
+        ESP_LOGE(TAG, "Initiator responded with error: %x", errcode);
+      }
+      break;
+  // HALT
+  case 0x50:
+    ESP_LOGI(TAG, "Received HALT command");
+    abort();
+
+  default:
+    ESP_LOGE(TAG, "Received unknown command: 0x%x", pCmdBuf[1]);
+    abort();
+    break;
+  }
 }

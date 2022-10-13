@@ -16,10 +16,10 @@ struct ContentView: View {
             Image(systemName: "globe")
                 .imageScale(.large)
                 .foregroundColor(.accentColor)
-            if (mr.msgs.isEmpty) {
+            if (mr.msglog.isEmpty) {
                 Text("Waiting")
             } else {
-                Text(mr.msgs.joined(separator: "\n"))
+                Text(mr.msglog.joined(separator: "\n"))
             }
             
             Button("Read") {

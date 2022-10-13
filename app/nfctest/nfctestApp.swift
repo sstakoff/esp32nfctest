@@ -23,27 +23,33 @@ struct nfctestApp: App {
 
 class MyReader: NSObject, NFCNDEFReaderSessionDelegate, ObservableObject {
     
-    @Published var msgs: [String] = []
+    @Published var msglog: [String] = []
     
     var session: NFCReaderSession?
 
     
     func readerSession(_ session: NFCNDEFReaderSession, didInvalidateWithError error: Error) {
-        msgs.append("Got reader error")
+        msglog.append("Got reader error")
         self.session = nil
     }
     
     func readerSession(_ session: NFCNDEFReaderSession, didDetectNDEFs messages: [NFCNDEFMessage]) {
-        msgs.append("NDEF detected!")
+        msglog.append("NDEF detected!")
+        for msg in messages {
+            for rec in msg.records {
+                let desc = String(describing: rec.typeNameFormat)
+                msglog.append("NDEF rec type: " + desc)
+            }
+        }
     }
     
     func readerSessionDidBecomeActive(_ session: NFCNDEFReaderSession) {
-        msgs.append("Reader is active")
+        msglog.append("Reader is active")
     }
     
     func read() {
         if (!NFCReaderSession.readingAvailable) {
-            msgs.append("Device does not support NFC")
+            msglog.append("Device does not support NFC")
             return
         }
         open()

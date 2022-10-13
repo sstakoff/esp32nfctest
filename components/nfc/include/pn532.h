@@ -8,8 +8,10 @@
 void pn532_wake();
 void pn532_initialize();
 void pn532_comms_test();
+void set_tag_data(uint8_t *data, size_t datalen);
 void pn532_get_firmware_version(uint8_t *IC, uint8_t *Ver, uint8_t *Rev, uint8_t *Support);
 void pn532_set_parameters(uint8_t flags);
+void processInitiatorCommand(const uint8_t *pCmdBuf, size_t cmdLen);
 
 void pn532_set_reset_pin(int reset_pin_num);
 void pn532_reset();
@@ -35,6 +37,8 @@ int check_error(const uint8_t *buf, size_t buflen, uint8_t *errorCode);
 #define CMD_SamConfiguration 0x14
 #define CMD_RfConfiguration 0x32
 #define CMD_TgInitAsTarget 0x8c
+#define CMD_TgGetInitiatorCommand 0x88
+#define CMD_TgResponseToInitiator 0x90
 
 #define SetParameters_AutomaticRATS_bit 0x10
 #define SetParameters_AutomaticATR_RES_bit 0x04
