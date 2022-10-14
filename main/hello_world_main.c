@@ -16,6 +16,7 @@
 #include <string.h>
 #include "pn532.h"
 #include "esp_log.h"
+#include "wifi.h"
 
 #define I2C_PORT 0
 
@@ -63,9 +64,10 @@ void app_main()
 
     set_tag_data(__tag_memory, sizeof(__tag_memory));
 
-    pn532_initialize();
+    // pn532_initialize();
 
 
+    configure_wifi();
 
     fflush(stdout);
 

@@ -9,7 +9,13 @@
     "i2c_types.h": "c",
     "i2c_wrap.h": "c",
     "esp_err.h": "c",
-    "sdkconfig.h": "c"
+    "sdkconfig.h": "c",
+    "protocomm.h": "c",
+    "manager.h": "c",
+    "scheme_ble.h": "c",
+    "esp_event.h": "c",
+    "esp_wifi.h": "c",
+    "mdns_private.h": "c"
   },
   "idf.port": "/dev/cu.usbserial-0001",
   "idf.flashType": "UART"
