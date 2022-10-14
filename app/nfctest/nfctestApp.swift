@@ -35,10 +35,18 @@ class MyReader: NSObject, NFCNDEFReaderSessionDelegate, ObservableObject {
     
     func readerSession(_ session: NFCNDEFReaderSession, didDetectNDEFs messages: [NFCNDEFMessage]) {
         msglog.append("NDEF detected!")
+        msglog.append("Msgs: " + String(messages.count))
         for msg in messages {
+            msglog.append("Records: " + String(msg.records.count))
             for rec in msg.records {
-                let desc = String(describing: rec.typeNameFormat)
-                msglog.append("NDEF rec type: " + desc)
+                if (rec.typeNameFormat != NFCTypeNameFormat.nfcWellKnown) {
+                    msglog.append("Unknown record type: " + String(describing: rec.typeNameFormat))
+                    continue
+                }
+                
+                msglog.append(rec.wellKnownTypeURIPayload()?.absoluteString ?? "..not a URL")
+                msglog.append(rec.wellKnownTypeTextPayload().0 ?? "..not a string")
+
             }
         }
     }
