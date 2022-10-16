@@ -18,5 +18,6 @@
     "mdns_private.h": "c"
   },
   "idf.port": "/dev/cu.usbserial-0001",
-  "idf.flashType": "UART"
+  "idf.flashType": "UART",
+  "cmake.configureOnOpen": false
 }

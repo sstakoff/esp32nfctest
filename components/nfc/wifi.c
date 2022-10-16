@@ -3,7 +3,6 @@
 
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
-#include <freertos/event_groups.h>
 
 #include <esp_log.h>
 #include <esp_wifi.h>
@@ -15,14 +14,9 @@
 #include <wifi_provisioning/scheme_ble.h>
 
 
-static const char *TAG = "app";
-
-/* Signal Wi-Fi events on this event-group */
-const int WIFI_CONNECTED_EVENT = BIT0;
-static EventGroupHandle_t wifi_event_group;
+static const char *TAG = "wifi";
 
 #define PROV_QR_VERSION         "v1"
-#define PROV_TRANSPORT_SOFTAP   "softap"
 #define PROV_TRANSPORT_BLE      "ble"
 #define QRCODE_BASE_URL         "https://espressif.github.io/esp-jumpstart/qrcode.html"
 
@@ -30,9 +24,6 @@ static EventGroupHandle_t wifi_event_group;
 static void event_handler(void* arg, esp_event_base_t event_base,
                           int32_t event_id, void* event_data)
 {
-#ifdef CONFIG_EXAMPLE_RESET_PROV_MGR_ON_FAILURE
-    static int retries;
-#endif
     if (event_base == WIFI_PROV_EVENT) {
         switch (event_id) {
             case WIFI_PROV_START:
@@ -52,36 +43,25 @@ static void event_handler(void* arg, esp_event_base_t event_base,
                          "\n\tPlease reset to factory and retry provisioning",
                          (*reason == WIFI_PROV_STA_AUTH_ERROR) ?
                          "Wi-Fi station authentication failed" : "Wi-Fi access-point not found");
-#ifdef CONFIG_EXAMPLE_RESET_PROV_MGR_ON_FAILURE
-                retries++;
-                if (retries >= CONFIG_EXAMPLE_PROV_MGR_MAX_RETRY_CNT) {
-                    ESP_LOGI(TAG, "Failed to connect with provisioned AP, reseting provisioned credentials");
-                    wifi_prov_mgr_reset_sm_state_on_failure();
-                    retries = 0;
-                }
-#endif
                 break;
             }
             case WIFI_PROV_CRED_SUCCESS:
                 ESP_LOGI(TAG, "Provisioning successful");
-#ifdef CONFIG_EXAMPLE_RESET_PROV_MGR_ON_FAILURE
-                retries = 0;
-#endif
                 break;
             case WIFI_PROV_END:
                 /* De-initialize manager once provisioning is finished */
+                ESP_LOGI(TAG, "Provisioning ended - deinit prov mgr");
                 wifi_prov_mgr_deinit();
                 break;
             default:
                 break;
         }
     } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
+        ESP_LOGI(TAG, "STA Started - connecting to WIFI");
         esp_wifi_connect();
     } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
         ip_event_got_ip_t* event = (ip_event_got_ip_t*) event_data;
         ESP_LOGI(TAG, "Connected with IP Address:" IPSTR, IP2STR(&event->ip_info.ip));
-        /* Signal main application to continue execution */
-        xEventGroupSetBits(wifi_event_group, WIFI_CONNECTED_EVENT);
     } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
         ESP_LOGI(TAG, "Disconnected. Connecting to the AP again...");
         esp_wifi_connect();
@@ -144,7 +124,7 @@ static void wifi_prov_print_qr(const char *name, const char *username, const cha
     ESP_LOGI(TAG, "Scan this QR code from the provisioning application for Provisioning.");
     // esp_qrcode_config_t cfg = ESP_QRCODE_CONFIG_DEFAULT();
     // esp_qrcode_generate(&cfg, payload);
-    // ESP_LOGI(TAG, "If QR code is not visible, copy paste the below URL in a browser.\n%s?data=%s", QRCODE_BASE_URL, payload);
+    ESP_LOGI(TAG, "If QR code is not visible, copy paste the below URL in a browser.\n%s?data=%s", QRCODE_BASE_URL, payload);
 }
 
 void configure_wifi(void)
@@ -165,7 +145,7 @@ void configure_wifi(void)
 
     /* Initialize the event loop */
     ESP_ERROR_CHECK(esp_event_loop_create_default());
-    wifi_event_group = xEventGroupCreate();
+
 
     /* Register our event handler for Wi-Fi, IP and Provisioning related events */
     ESP_ERROR_CHECK(esp_event_handler_register(WIFI_PROV_EVENT, ESP_EVENT_ANY_ID, &event_handler, NULL));
@@ -262,7 +242,7 @@ void configure_wifi(void)
         // wifi_prov_mgr_wait();
         // wifi_prov_mgr_deinit();
         /* Print QR code for provisioning */
-        // wifi_prov_print_qr(service_name, username, pop, PROV_TRANSPORT_BLE);
+        wifi_prov_print_qr(service_name, NULL, sec_params, PROV_TRANSPORT_BLE);
     } else {
         ESP_LOGI(TAG, "Already provisioned, starting Wi-Fi STA");
 
@@ -273,9 +253,4 @@ void configure_wifi(void)
         /* Start Wi-Fi station */
         wifi_init_sta();
     }
-
-    /* Wait for Wi-Fi connection */
-    xEventGroupWaitBits(wifi_event_group, WIFI_CONNECTED_EVENT, true, true, portMAX_DELAY);
-
-
 }
